@@ -17,15 +17,16 @@
 package com.google.android.gms.nearby.messages.samples.hellobeacons;
 
 import android.Manifest;
-import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.annotation.RequiresApi;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -37,14 +38,10 @@ import android.widget.RelativeLayout;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.ResultCallback;
-import com.google.android.gms.common.api.Status;
 import com.google.android.gms.nearby.Nearby;
+import com.google.android.gms.nearby.messages.MessagesClient;
 import com.google.android.gms.nearby.messages.MessagesOptions;
-import com.google.android.gms.nearby.messages.NearbyMessagesStatusCodes;
 import com.google.android.gms.nearby.messages.NearbyPermissions;
-import com.google.android.gms.nearby.messages.Strategy;
-import com.google.android.gms.nearby.messages.SubscribeOptions;
 
 public class MainActivity extends AppCompatActivity
         implements GoogleApiClient.ConnectionCallbacks,
@@ -54,7 +51,7 @@ public class MainActivity extends AppCompatActivity
 
     private static final int PERMISSIONS_REQUEST_CODE = 1111;
 
-    private GoogleApiClient mGoogleApiClient;
+    private MessagesClient mMessagesClient;
 
     private RelativeLayout mContainer;
 
@@ -78,7 +75,7 @@ public class MainActivity extends AppCompatActivity
     protected void onResume() {
         super.onResume();
         if (havePermissions()) {
-            buildGoogleApiClient();
+            buildMessagesClient();
         }
     }
 
@@ -112,14 +109,9 @@ public class MainActivity extends AppCompatActivity
         Log.i(TAG, "GoogleApiClient connected");
     }
 
-    private synchronized void buildGoogleApiClient() {
-        if (mGoogleApiClient == null) {
-            mGoogleApiClient = new GoogleApiClient.Builder(this)
-                    .addApi(Nearby.MESSAGES_API, new MessagesOptions.Builder()
-                        .setPermissions(NearbyPermissions.BLE).build())
-                    .addConnectionCallbacks(this)
-                    .enableAutoManage(this, this)
-                    .build();
+    private synchronized void buildMessagesClient() {
+        if (mMessagesClient == null) {
+            mMessagesClient = Nearby.getMessagesClient(this, new MessagesOptions.Builder().setPermissions(NearbyPermissions.BLE).build());
         }
     }
 
@@ -172,6 +164,7 @@ public class MainActivity extends AppCompatActivity
                 }).show();
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String[]permissions, @NonNull int[] grantResults) {
@@ -193,7 +186,7 @@ public class MainActivity extends AppCompatActivity
                 }
             } else {
                 Log.i(TAG, "Permission granted, building GoogleApiClient");
-                buildGoogleApiClient();
+                buildMessagesClient();
             }
         }
     }

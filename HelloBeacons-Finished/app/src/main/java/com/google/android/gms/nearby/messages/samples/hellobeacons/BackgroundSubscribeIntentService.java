@@ -17,10 +17,12 @@
 package com.google.android.gms.nearby.messages.samples.hellobeacons;
 
 import android.app.IntentService;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.support.v4.app.NotificationCompat;
 import android.text.TextUtils;
 
@@ -41,6 +43,7 @@ public class BackgroundSubscribeIntentService extends IntentService {
 
     private static final int MESSAGES_NOTIFICATION_ID = 1;
     private static final int NUM_MESSAGES_IN_NOTIFICATION = 5;
+    private static final String NOTIFICATION_CHANNEL_ID = "default";
 
     public BackgroundSubscribeIntentService() {
         super("BackgroundSubscribeIntentService");
@@ -55,7 +58,7 @@ public class BackgroundSubscribeIntentService extends IntentService {
     @Override
     protected void onHandleIntent(Intent intent) {
         if (intent != null) {
-            Nearby.Messages.handleIntent(intent, new MessageListener() {
+            Nearby.getMessagesClient(this).handleIntent(intent, new MessageListener() {
                 @Override
                 public void onFound(Message message) {
                     Utils.saveFoundMessage(getApplicationContext(), message);
@@ -84,7 +87,11 @@ public class BackgroundSubscribeIntentService extends IntentService {
         String contentTitle = getContentTitle(messages);
         String contentText = getContentText(messages);
 
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            notificationManager.createNotificationChannel(new NotificationChannel(NOTIFICATION_CHANNEL_ID, getString(R.string.app_name), NotificationManager.IMPORTANCE_DEFAULT));
+        }
+
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.star_on)
                 .setContentTitle(contentTitle)
                 .setContentText(contentText)

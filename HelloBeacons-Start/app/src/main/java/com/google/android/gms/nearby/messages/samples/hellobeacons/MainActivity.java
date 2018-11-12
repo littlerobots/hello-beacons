@@ -16,29 +16,18 @@
 
 package com.google.android.gms.nearby.messages.samples.hellobeacons;
 
-import android.content.SharedPreferences;
 import android.os.Bundle;
-
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.widget.RelativeLayout;
 
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.nearby.Nearby;
-
-import com.google.android.gms.nearby.messages.MessagesOptions;
-import com.google.android.gms.nearby.messages.NearbyPermissions;
+import com.google.android.gms.nearby.messages.MessagesClient;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = MainActivity.class.getSimpleName();
 
-    private GoogleApiClient mGoogleApiClient;
+    private MessagesClient mMessagesClient;
 
     private RelativeLayout mContainer;
 

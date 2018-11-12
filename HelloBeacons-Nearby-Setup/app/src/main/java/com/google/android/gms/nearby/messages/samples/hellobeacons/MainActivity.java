@@ -16,40 +16,22 @@
 
 package com.google.android.gms.nearby.messages.samples.hellobeacons;
 
-import android.Manifest;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.os.Bundle;
-
-import android.provider.Settings;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.design.widget.Snackbar;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
-import android.view.View;
 import android.widget.RelativeLayout;
 
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.nearby.Nearby;
+import com.google.android.gms.nearby.messages.MessagesClient;
 import com.google.android.gms.nearby.messages.MessagesOptions;
 import com.google.android.gms.nearby.messages.NearbyPermissions;
 
-public class MainActivity extends AppCompatActivity
-        implements GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener {
+public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = MainActivity.class.getSimpleName();
 
-    /**
-     * The entry point to Google Play Services.
-     */
-    private GoogleApiClient mGoogleApiClient;
+
+    private MessagesClient mMessagesClient;
 
     /**
      * The container {@link android.view.ViewGroup} for the minimal UI associated with this sample.
@@ -74,13 +56,8 @@ public class MainActivity extends AppCompatActivity
     }
 
     private synchronized void buildGoogleApiClient() {
-        if (mGoogleApiClient == null) {
-            mGoogleApiClient = new GoogleApiClient.Builder(this)
-                    .addApi(Nearby.MESSAGES_API, new MessagesOptions.Builder()
-                        .setPermissions(NearbyPermissions.BLE).build())
-                    .addConnectionCallbacks(this)
-                    .enableAutoManage(this, this)
-                    .build();
+        if (mMessagesClient == null) {
+            mMessagesClient = Nearby.getMessagesClient(this, new MessagesOptions.Builder().setPermissions(NearbyPermissions.BLE).build());
         }
     }
 
@@ -88,27 +65,6 @@ public class MainActivity extends AppCompatActivity
     protected void onPause() {
         super.onPause();
     }
-
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-        if (mContainer != null) {
-            Snackbar.make(mContainer,
-                    "Exception while connecting to Google Play services: " +
-                            connectionResult.getErrorMessage(),
-                    Snackbar.LENGTH_INDEFINITE).show();
-        }
-    }
-
-    @Override
-    public void onConnectionSuspended(int i) {
-        Log.w(TAG, "Connection suspended. Error code: " + i);
-    }
-
-    @Override
-    public void onConnected(@Nullable Bundle bundle) {
-        Log.i(TAG, "GoogleApiClient connected");
-    }
-
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {

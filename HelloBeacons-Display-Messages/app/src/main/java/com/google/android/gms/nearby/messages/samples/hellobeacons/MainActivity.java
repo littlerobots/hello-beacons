@@ -23,13 +23,13 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import android.support.annotation.RequiresApi;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -37,28 +37,27 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
-import android.widget.ListView;
 import android.widget.RelativeLayout;
 
-import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
-import com.google.android.gms.common.api.Status;
 import com.google.android.gms.nearby.Nearby;
-import com.google.android.gms.nearby.messages.Messages;
 import com.google.android.gms.nearby.messages.MessageListener;
+import com.google.android.gms.nearby.messages.Messages;
+import com.google.android.gms.nearby.messages.MessagesClient;
 import com.google.android.gms.nearby.messages.MessagesOptions;
 import com.google.android.gms.nearby.messages.NearbyMessagesStatusCodes;
 import com.google.android.gms.nearby.messages.NearbyPermissions;
 import com.google.android.gms.nearby.messages.Strategy;
 import com.google.android.gms.nearby.messages.SubscribeOptions;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener,
-        SharedPreferences.OnSharedPreferenceChangeListener {
+public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     private static final String TAG = MainActivity.class.getSimpleName();
 
@@ -66,10 +65,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
     private static final String KEY_SUBSCRIBED = "subscribed";
 
-    /**
-     * The entry point to Google Play Services.
-     */
-    private GoogleApiClient mGoogleApiClient;
+    private MessagesClient mMessagesClient;
 
     /**
      * The container {@link android.view.ViewGroup} for the minimal UI associated with this sample.
@@ -120,10 +116,11 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 .registerOnSharedPreferenceChangeListener(this);
 
         if (havePermissions()) {
-            buildGoogleApiClient();
+            buildMessagesClient();
         }
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
@@ -142,20 +139,16 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 }
             } else {
                 Log.i(TAG, "Permission granted, building GoogleApiClient");
-                buildGoogleApiClient();
+                buildMessagesClient();
             }
         }
     }
 
-    private synchronized void buildGoogleApiClient() {
-        if (mGoogleApiClient == null) {
-            mGoogleApiClient = new GoogleApiClient.Builder(this)
-                    .addApi(Nearby.MESSAGES_API, new MessagesOptions.Builder()
-                        .setPermissions(NearbyPermissions.BLE).build())
-                    .addConnectionCallbacks(this)
-                    .enableAutoManage(this, this)
-                    .build();
+    private synchronized void buildMessagesClient() {
+        if (mMessagesClient == null) {
+            mMessagesClient = Nearby.getMessagesClient(this, new MessagesOptions.Builder().setPermissions(NearbyPermissions.BLE).build());
         }
+        subscribe();
     }
 
     @Override
@@ -163,26 +156,6 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         getSharedPreferences(getApplicationContext().getPackageName(), Context.MODE_PRIVATE)
                 .unregisterOnSharedPreferenceChangeListener(this);
         super.onPause();
-    }
-
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-        if (mContainer != null) {
-            Snackbar.make(mContainer, "Exception while connecting to Google Play services: " +
-                            connectionResult.getErrorMessage(),
-                    Snackbar.LENGTH_INDEFINITE).show();
-        }
-    }
-
-    @Override
-    public void onConnectionSuspended(int i) {
-        Log.w(TAG, "Connection suspended. Error code: " + i);
-    }
-
-    @Override
-    public void onConnected(@Nullable Bundle bundle) {
-        Log.i(TAG, "GoogleApiClient connected");
-        subscribe();
     }
 
     @Override
@@ -211,7 +184,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     }
 
     /**
-     * Calls {@link Messages#subscribe(GoogleApiClient, MessageListener, SubscribeOptions)},
+     * Calls {@link MessagesClient#subscribe(MessageListener, SubscribeOptions)},
      * using a {@link Strategy} for BLE scanning. Attaches a {@link ResultCallback} to monitor
      * whether the call to {@code subscribe()} succeeded or failed.
      */
@@ -227,20 +200,22 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 .setStrategy(Strategy.BLE_ONLY)
                 .build();
 
-        Nearby.Messages.subscribe(mGoogleApiClient, getPendingIntent(), options)
-                .setResultCallback(new ResultCallback<Status>() {
+        mMessagesClient.subscribe(getPendingIntent(), options)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
-                    public void onResult(@NonNull Status status) {
-                        if (status.isSuccess()) {
-                            Log.i(TAG, "Subscribed successfully.");
-                            startService(getBackgroundSubscribeServiceIntent());
-                        } else {
-                            Log.e(TAG, "Operation failed. Error: " +
-                                    NearbyMessagesStatusCodes.getStatusCodeString(
-                                            status.getStatusCode()));
-                        }
+                    public void onSuccess(Void aVoid) {
+                        Log.i(TAG, "Subscribed successfully.");
+                        startService(getBackgroundSubscribeServiceIntent());
                     }
-                });
+                }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Log.e(TAG, "Operation failed. Error: " +
+                        NearbyMessagesStatusCodes.getStatusCodeString(
+                                ((ApiException) e).getStatusCode()));
+
+            }
+        });
     }
 
     private PendingIntent getPendingIntent() {
